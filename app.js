@@ -32,6 +32,7 @@ const userSchema = new mongoose.Schema({
   email: String,
   password: String,
   googleId: String,
+  secret: String,
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -132,8 +133,31 @@ app.get("/logout", (req, res) => {
 });
 
 app.get("/secrets", (req, res) => {
-  if (req.isAuthenticated()) res.render("secrets");
-  else res.redirect("/login");
+  if (req.isAuthenticated()) {
+    User.find({ secret: { $exists: true } }, (err, result) => {
+      if (err) console.log(err);
+      else res.render("secrets", { userSecret: result });
+    });
+  } else res.redirect("/login");
 });
+
+app
+  .route("/submit")
+  .get((req, res) => {
+    if (req.isAuthenticated()) res.sender("submit");
+    else res.redirect("login");
+  })
+  .post((req, res) => {
+    const submittedSecret = req.body.secret;
+    User.findById(req.user.id, (err, result) => {
+      if (err) console.log(err);
+      else {
+        if (result) {
+          result.secret = submittedSecret;
+          result.save(() => res.redirect("/secrets"));
+        }
+      }
+    });
+  });
 
 app.listen(3000, () => console.log("Server started at port 3000"));
